@@ -51,6 +51,10 @@ class CommandShell(protocol.Protocol):
                 status[c]['output'] = p.stdout.read().decode('utf-8')
         return status
 
+    def kill_app(self, appid):
+        c, p = self.running[appid]
+        p.terminate()
+
     def dataReceived(self, data):
         print data
         while data:
@@ -83,6 +87,11 @@ class CommandShell(protocol.Protocol):
                     self.mouse.release(*pos, button=decode.get('b'))
 
             elif decode.get('command') == 'status':
+                self.transport.write(JSONEncoder().encode(
+                    self.update_status()))
+
+            elif decode.get('command') == 'kill':
+                self.kill_app(decode['id'])
                 self.transport.write(JSONEncoder().encode(
                     self.update_status()))
 

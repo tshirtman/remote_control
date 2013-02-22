@@ -1,6 +1,5 @@
 # encoding: utf-8
 from kivy.app import App
-from kivy.lang import Builder
 from kivy.properties import \
     ListProperty, ObjectProperty, StringProperty, NumericProperty
 from kivy.support import install_twisted_reactor
@@ -27,105 +26,6 @@ json_decode = JSONDecoder().decode
 json_encode = JSONEncoder().encode
 
 __version__ = '0.01'
-
-
-kvbase = '''
-BoxLayout:
-    orientation: 'vertical'
-    BoxLayout:
-        size_hint_y: None
-        height: '35dp'
-
-        TextInput:
-            id: address
-
-        TextInput:
-            id: port
-
-        Button:
-            text: 'connect'
-            size_hint_x: None
-            width: self.texture_size[0] + dp(2)
-            on_press: app.connect(address.text, int(port.text))
-
-    ScrollView:
-        do_scroll_x: False
-        do_scroll_y: True
-
-        BoxLayout:
-            orientation: 'vertical'
-            BoxLayout:
-                on_parent: app.container = self
-                orientation: 'vertical'
-                size_hint_y: None
-                height: sum((x.height for x in self.children))
-                Button:
-                    text: 'placeholder'
-
-    TabbedPanel:
-        size_hint_y: .4
-        do_default_tab: False
-        TabbedPanelItem:
-            text: 'logs'
-            ScrollView:
-                Label:
-                    size_hint_y: None
-                    text_size: self.width, None
-                    height: self.texture_size[1]
-                    text: app.log
-
-                    canvas:
-                        Color:
-                            rgba: .3, .3, .3, .5
-                        Rectangle:
-                            pos: 0, 0
-                            size: self.width, self.top
-        TabbedPanelItem:
-            text: 'mouse'
-            BoxLayout:
-                BoxLayout:
-                    size_hint_x: None
-                    width: slabel.width
-                    orientation: 'vertical'
-                    Label:
-                        id: slabel
-                        text: 'sensivity'
-                        width: self.texture_size[0]
-                    Slider:
-                        id: mslider
-                        orientation: 'vertical'
-                        value: app.mouse_sensivity
-                        on_value: app.mouse_sensivity = self.value
-                        min: 0.1
-                        max: 10
-                    Label:
-                        text:  str(round(mslider.value, 4))
-                        width: self.texture_size[0]
-
-                MousePad:
-                    canvas:
-                        Color:
-                            rgba: .9, .9, .9, .9
-                        Rectangle:
-                            pos: self.pos
-                            size: self.size
-                BoxLayout:
-                    size_hint_x: None
-                    width: '50dp'
-                    orientation: 'vertical'
-                    Button:
-                        text: 'double\\nclick'
-                        on_press: app.click(n=2)
-                    Button:
-                        text: 'click'
-                        on_press: app.mouse_press()
-                        on_release: app.mouse_release()
-                    Button:
-                        text: 'right\\nclick'
-                        on_press: app.mouse_press(b=2)
-                        on_release: app.mouse_release(b=2)
-
-'''
 
 
 class CommandClient(Protocol):
@@ -169,15 +69,13 @@ class MousePad(Widget):
 class RemoteCommand(App):
     commands = ListProperty([])
     container = ObjectProperty(None)
+    status = ObjectProperty(None)
     log = StringProperty('')
     mouse_sensivity = NumericProperty(1)
 
     def on_container(self, *args):
         self.log += "got container\n"
         print self.container
-
-    def build(self):
-        return Builder.load_string(kvbase)
 
     def connect(self, ip, port):
         point = TCP4ClientEndpoint(reactor, ip, port)
@@ -194,6 +92,19 @@ class RemoteCommand(App):
         if 'commands' in datadict:
             self.commands = datadict['commands']
 
+        if 'status' in datadict:
+            self.status.clear_widgets()
+
+            for command in datadict['running']:
+                box = BoxLayout()
+                label = command['name']
+                button = Button(text='x')
+                button.bind(on_press=partial(
+                    self.send, {'command': 'kill', 'id': command['id']}))
+                box.add_widget(label)
+                box.add_widget(button)
+                self.status.add_widget(box)
+
     def got_protocol(self, p):
         self.log += "got protocol\n"
         self.protocol = p
@@ -203,7 +114,7 @@ class RemoteCommand(App):
         self.container.clear_widgets()
         self.log += 'got a list of commands!\n'
         for command, arguments in self.commands:
-            box = BoxLayout()
+            box = BoxLayout(height='30dp')
             button = Button(text=command)
 
             args_inputs = []
