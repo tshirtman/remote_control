@@ -1,0 +1,7 @@
+*.swo
+*.swp
+*.un~
+*.pyc
+shellserver.cfg
+.buildozer
+bin/

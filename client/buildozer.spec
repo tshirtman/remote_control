@@ -34,6 +34,8 @@ requirements = twisted,kivy
 # (str) Icon of the application
 #icon.filename = %(source.dir)s/data/icon.png
 
+# (str) orientation of the application
+orientation = portrait
 #
 # Android specific
 #
