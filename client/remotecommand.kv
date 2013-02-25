@@ -82,16 +82,17 @@ BoxLayout:
 
                 BoxLayout:
                     size_hint_x: None
-                    width: '50dp'
+                    width: dp(50)
                     orientation: 'vertical'
                     Button:
                         text: 'double\nclick'
-                        on_press: app.click(n=2)
+                        on_press: app.mouse_click(n=2)
                     Button:
                         text: 'click'
                         on_press: app.mouse_press()
                         on_release: app.mouse_release()
                     Button:
+                        text: 'right\nclick'
                         on_press: app.mouse_press(b=2)
                         on_release: app.mouse_release(b=2)
 
@@ -99,6 +100,5 @@ BoxLayout:
             text: 'status'
             ScrollView:
                 BoxLayout:
+                    orientation: 'vertical'
                     on_parent: app.status = self
-
-

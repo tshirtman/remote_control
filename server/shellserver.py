@@ -3,7 +3,9 @@ from twisted.python import filepath
 from ConfigParser import ConfigParser
 from json import JSONDecoder, JSONEncoder
 from lib.pymouse import PyMouse
-import subprocess
+from subprocess import Popen, PIPE
+from uuid import uuid4
+from time import time
 
 CONFIG = 'shellserver.cfg'
 
@@ -12,6 +14,9 @@ class CommandShell(protocol.Protocol):
     def init(self):
         self.running = []
         self.mouse = PyMouse()
+        reactor.callLater(1, self.clock_update_status)
+        self.status = {}
+        self.running = {}
 
     def load_config(self, *args):
         if args:
@@ -35,25 +40,72 @@ class CommandShell(protocol.Protocol):
 
     def execute(self, command, arguments):
         print "running %s" % command
-        command = self.config.get(command, 'command').split(' ')
-        process = subprocess.Popen(command + arguments,
-                                   stdout=subprocess.PIPE)
-        self.running.append((command, process))
+        cmd = self.config.get(command, 'command').split(' ')
+
+        if (
+            'log' in self.config.items(command) and
+            self.config.get(command, 'log')
+        ):
+            process = Popen(cmd + arguments, stdout=PIPE, stderr=PIPE)
+        else:
+            process = Popen(cmd + arguments)
+
+        uid = uuid4().hex
+        self.status[uid] = {'command': command, 'time': time()}
+        self.running[uid] = process
+
+    def clock_update_status(self):
+        self.update_status()
+        reactor.callLater(1, self.clock_update_status)
 
     def update_status(self):
-        status = {}
-        for c, p in self.running:
-            status[c] = {}
-            status[c]['status'] = p.poll()
+        log = ''
+        to_remove = set()
+        for uid in self.status:
+            p = self.running[uid]
+            command = self.status[uid]['command']
+
+            print "shouldn't be blocking"
             if p.poll():
-                self.running.remove(p)
-            if self.config.get(c, 'output'):
-                status[c]['output'] = p.stdout.read().decode('utf-8')
-        return status
+                to_remove.add(uid)
+            print "right?"
+
+            if (
+                'log' in self.config.items(command) and
+                self.config.get(command, 'log')
+            ):
+                try:
+                    outs = p.communicate()
+                    log += outs[0].decode('utf-8')
+                    log += outs[1].decode('utf-8')
+                except ValueError, e:
+                    if 'closed file' in e:
+                        to_remove.add(uid)
+                    else:
+                        raise
+
+        for uid in to_remove:
+            self.running.remove(uid)
+            self.status.remove(uid)
+
+        return self.transport.write(JSONEncoder().encode({
+            'status': self.status,
+            'log': log
+        }))
 
     def kill_app(self, appid):
-        c, p = self.running[appid]
-        p.terminate()
+        if appid in self.running:
+            try:
+                self.running[appid].terminate()
+                self.running.pop(appid)
+                self.status.pop(appid)
+
+            except OSError, e:
+                if 'No such process' in e:
+                    self.status.pop(appid)
+                    self.running.pop(appid)
+                else:
+                    raise e
 
     def dataReceived(self, data):
         print data
@@ -87,13 +139,11 @@ class CommandShell(protocol.Protocol):
                     self.mouse.release(*pos, button=decode.get('b'))
 
             elif decode.get('command') == 'status':
-                self.transport.write(JSONEncoder().encode(
-                    self.update_status()))
+                    self.update_status()
 
             elif decode.get('command') == 'kill':
-                self.kill_app(decode['id'])
-                self.transport.write(JSONEncoder().encode(
-                    self.update_status()))
+                self.kill_app(decode['uid'])
+                self.update_status()
 
             elif decode.get('run') in zip(*self.commands)[0]:
                 self.execute(decode.get('run'), decode.get('arguments'))

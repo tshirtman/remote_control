@@ -4,8 +4,11 @@ from kivy.properties import \
     ListProperty, ObjectProperty, StringProperty, NumericProperty
 from kivy.support import install_twisted_reactor
 
+from kivy.metrics import dp
+
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
+from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
 
@@ -22,7 +25,7 @@ from functools import partial
 from json import JSONDecoder
 from json import JSONEncoder
 
-json_decode = JSONDecoder().decode
+json_decode = JSONDecoder().raw_decode
 json_encode = JSONEncoder().encode
 
 __version__ = '0.01'
@@ -83,27 +86,30 @@ class RemoteCommand(App):
         d.addCallback(self.got_protocol)
         self.log += u"trying to connect…\n"
 
-    def send(self, **kwargs):
+    def send(self, *args, **kwargs):
         self.protocol.sendMessage(json_encode(kwargs))
 
     def receive(self, data):
-        datadict = json_decode(data)
-        self.log += 'got data: %s\n' % datadict
-        if 'commands' in datadict:
-            self.commands = datadict['commands']
+        while data:
+            datadict, index = json_decode(data)
+            data = data[index:]
+            self.log += 'got data: %s\n' % datadict
+            if 'commands' in datadict:
+                self.commands = datadict['commands']
 
-        if 'status' in datadict:
-            self.status.clear_widgets()
+            if 'status' in datadict:
+                status = datadict['status']
+                self.status.clear_widgets()
 
-            for command in datadict['running']:
-                box = BoxLayout()
-                label = command['name']
-                button = Button(text='x')
-                button.bind(on_press=partial(
-                    self.send, {'command': 'kill', 'id': command['id']}))
-                box.add_widget(label)
-                box.add_widget(button)
-                self.status.add_widget(box)
+                for uid, command in status.items():
+                    box = BoxLayout(size_hint_y='None', height='30dp')
+                    label = Label(text=' '.join(command['command']))
+                    button = Button(text='x')
+                    button.bind(on_press=partial(
+                        self.send, command='kill', uid=uid))
+                    box.add_widget(label)
+                    box.add_widget(button)
+                    self.status.add_widget(box)
 
     def got_protocol(self, p):
         self.log += "got protocol\n"
@@ -114,7 +120,7 @@ class RemoteCommand(App):
         self.container.clear_widgets()
         self.log += 'got a list of commands!\n'
         for command, arguments in self.commands:
-            box = BoxLayout(height='30dp')
+            box = BoxLayout(height=dp(30))
             button = Button(text=command)
 
             args_inputs = []
