@@ -5,10 +5,18 @@ BoxLayout:
         height: '35dp'
 
         TextInput:
+            mutiline: False
             id: address
+            on_text_validate:
+                self.focus = False
+                port.focus = True
+            #text: app.config.items('connections')[-1][0]
 
         TextInput:
+            multiline: False
             id: port
+            on_text_validate: app.connect(address.text, int(port.text))
+            #text: app.config.items('connections')[-1][1]
 
         Button:
             text: 'connect'
@@ -16,19 +24,32 @@ BoxLayout:
             width: self.texture_size[0] + dp(2)
             on_press: app.connect(address.text, int(port.text))
 
-    ScrollView:
-        do_scroll_x: False
-        do_scroll_y: True
+    TabbedPanel:
+        do_default_tab: False
+        TabbedPanelItem:
+            text: 'commands'
+            ScrollView:
+                do_scroll_x: False
+                do_scroll_y: True
 
-        BoxLayout:
-            orientation: 'vertical'
-            BoxLayout:
-                on_parent: app.container = self
-                orientation: 'vertical'
-                size_hint_y: None
-                height: sum((x.height for x in self.children))
-                Button:
-                    text: 'placeholder'
+                BoxLayout:
+                    orientation: 'vertical'
+                    BoxLayout:
+                        on_parent: app.container = self
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: sum((x.height for x in self.children))
+                        Button:
+                            text: 'placeholder'
+
+        TabbedPanelItem:
+            text: 'image'
+            Widget:
+                canvas:
+                    Rectangle:
+                        texture: app.screen_texture
+                        #size: self.size
+                        pos: self.pos
 
     TabbedPanel:
         size_hint_y: .4
@@ -95,6 +116,22 @@ BoxLayout:
                         text: 'right\nclick'
                         on_press: app.mouse_press(b=2)
                         on_release: app.mouse_release(b=2)
+
+        TabbedPanelItem:
+            text: 'keyboard'
+            BoxLayout:
+                orientation: 'vertical'
+                BoxLayout:
+                    size_hint_y: None
+                    height: dp(30)
+                    TextInput:
+                        multiline: False
+                        on_text_validate:
+                            app.send_keys(self.text)
+                            self.text = ''
+                GridLayout:
+                    cols: 13
+                    on_parent: app.populate_keyboard(self)
 
         TabbedPanelItem:
             text: 'status'

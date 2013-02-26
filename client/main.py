@@ -5,12 +5,14 @@ from kivy.properties import \
 from kivy.support import install_twisted_reactor
 
 from kivy.metrics import dp
+from kivy.clock import Clock
 
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
+from kivy.core.image import Image as CoreImage
 
 # installing twisted reactor the kivy way before importing anything from
 # twisted
@@ -19,6 +21,8 @@ install_twisted_reactor()
 from twisted.internet import reactor
 from twisted.internet.protocol import Factory, Protocol
 from twisted.internet.endpoints import TCP4ClientEndpoint
+
+from ConfigParser import ConfigParser
 
 from functools import partial
 
@@ -29,6 +33,8 @@ json_decode = JSONDecoder().raw_decode
 json_encode = JSONEncoder().encode
 
 __version__ = '0.01'
+
+CONFIG = 'remote_command.cfg'
 
 
 class CommandClient(Protocol):
@@ -75,10 +81,7 @@ class RemoteCommand(App):
     status = ObjectProperty(None)
     log = StringProperty('')
     mouse_sensivity = NumericProperty(1)
-
-    def on_container(self, *args):
-        self.log += "got container\n"
-        print self.container
+    screen_texture = ObjectProperty(None)
 
     def connect(self, ip, port):
         point = TCP4ClientEndpoint(reactor, ip, port)
@@ -86,14 +89,22 @@ class RemoteCommand(App):
         d.addCallback(self.got_protocol)
         self.log += u"trying to connect…\n"
 
+        if ip not in self.config.items('connections'):
+            self.config.set('connections', ip, port)
+
     def send(self, *args, **kwargs):
         self.protocol.sendMessage(json_encode(kwargs))
 
+    def update_screen(self, *args):
+        self.send(command='capture', size=(128, 128))
+
     def receive(self, data):
         while data:
+            #print data
             datadict, index = json_decode(data)
             data = data[index:]
-            self.log += 'got data: %s\n' % datadict
+
+            #self.log += 'got data: %s\n' % datadict
             if 'commands' in datadict:
                 self.commands = datadict['commands']
 
@@ -111,10 +122,17 @@ class RemoteCommand(App):
                     box.add_widget(button)
                     self.status.add_widget(box)
 
+            if 'capture' in datadict:
+                with open('tmp.bmp', 'w') as f:
+                    f.write(datadict['capture'].decode('base64'))
+
+                self.screen_texture = CoreImage('tmp.bmp').texture
+
     def got_protocol(self, p):
         self.log += "got protocol\n"
         self.protocol = p
         self.send(command='list')
+        Clock.schedule_interval(self.update_screen, 1)
 
     def on_commands(self, *args):
         self.container.clear_widgets()
@@ -146,8 +164,8 @@ class RemoteCommand(App):
 
     def mouse_move(self, dx, dy):
         self.send(command='mouse', action='move',
-                  dx=round(dx * self.mouse_sensivity),
-                  dy=-round(dy * self.mouse_sensivity))
+                  dx=int(round(dx * self.mouse_sensivity)),
+                  dy=-int(round(dy * self.mouse_sensivity)))
 
     def mouse_click(self, b=1, n=2):
         self.send(command='mouse', action='click', b=b, n=n)
@@ -160,11 +178,83 @@ class RemoteCommand(App):
         self.log += 'mouse released\n'
         self.send(command='mouse', action='release', b=b)
 
+    def send_keys(self, string):
+        self.send(command='type', string=string)
+
+    def press_special_key(self, key):
+        self.send(command='press_key', key=key.text)
+
+    def release_special_key(self, key):
+        self.send(command='release_key', key=key.text)
+
+    def on_start(self, *args):
+        self.config = ConfigParser()
+        self.config.read(CONFIG)
+
+        if not self.config.has_section('connections'):
+            self.config.add_section('connections')
+
+            with open(CONFIG, 'w') as f:
+                self.config.write(f)
+
     def on_pause(self, *args):
+        with open(CONFIG, 'w') as f:
+            self.config.write(f)
         return True
 
     def on_resume(self, *args):
         return True
+
+    def on_stop(self, *args):
+        with open(CONFIG, 'w') as f:
+            self.config.write(f)
+        return True
+
+    def populate_keyboard(self, grid):
+        b = Button(text='esc')
+        b.bind(on_press=self.press_special_key)
+        b.bind(on_release=self.release_special_key)
+        grid.add_widget(b)
+
+        for f in range(12):
+            b = Button(text='f%d' % (f + 1))
+            b.bind(on_press=self.press_special_key)
+            b.bind(on_release=self.release_special_key)
+            grid.add_widget(b)
+
+        for i in range(13):
+            grid.add_widget(Widget())
+
+        grid.add_widget(Widget())
+
+        b = Button(text='up')
+        b.bind(on_press=self.press_special_key)
+        b.bind(on_release=self.release_special_key)
+        grid.add_widget(b)
+
+        for i in range(11):
+            grid.add_widget(Widget())
+
+        for t in 'left', 'down', 'right':
+            b = Button(text=t)
+            b.bind(on_press=self.press_special_key)
+            b.bind(on_release=self.release_special_key)
+            grid.add_widget(b)
+
+        grid.add_widget(Widget())
+
+        for t in 'up', 'down':
+            b = Button(text='pg%s' % t)
+            b.bind(on_press=self.press_special_key)
+            b.bind(on_release=self.release_special_key)
+            grid.add_widget(b)
+
+        grid.add_widget(Widget())
+
+        b = Button(text='return')
+        b.bind(on_press=self.press_special_key)
+        b.bind(on_release=self.release_special_key)
+        grid.add_widget(b)
 
 
 if __name__ == '__main__':

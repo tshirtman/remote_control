@@ -1,11 +1,18 @@
 from twisted.internet import protocol, reactor, inotify
 from twisted.python import filepath
 from ConfigParser import ConfigParser
-from json import JSONDecoder, JSONEncoder
-from lib.pymouse import PyMouse
 from subprocess import Popen, PIPE
 from uuid import uuid4
 from time import time
+from autopy import mouse, key, bitmap
+
+from json import JSONDecoder
+from json import JSONEncoder
+
+json_decode = JSONDecoder().raw_decode
+json_encode = JSONEncoder().encode
+
+BUTTONS = mouse.LEFT_BUTTON, mouse.RIGHT_BUTTON, mouse.CENTER_BUTTON
 
 CONFIG = 'shellserver.cfg'
 
@@ -13,7 +20,6 @@ CONFIG = 'shellserver.cfg'
 class CommandShell(protocol.Protocol):
     def init(self):
         self.running = []
-        self.mouse = PyMouse()
         reactor.callLater(1, self.clock_update_status)
         self.status = {}
         self.running = {}
@@ -37,6 +43,9 @@ class CommandShell(protocol.Protocol):
         print "adding watcher"
         notifier.watch(filepath.FilePath(CONFIG), callbacks=[self.load_config])
         print "config watcher started"
+
+    def send(self, *args, **kwargs):
+        self.transport.write(json_encode(kwargs))
 
     def execute(self, command, arguments):
         print "running %s" % command
@@ -65,10 +74,8 @@ class CommandShell(protocol.Protocol):
             p = self.running[uid]
             command = self.status[uid]['command']
 
-            print "shouldn't be blocking"
             if p.poll():
                 to_remove.add(uid)
-            print "right?"
 
             if (
                 'log' in self.config.items(command) and
@@ -88,10 +95,7 @@ class CommandShell(protocol.Protocol):
             self.running.remove(uid)
             self.status.remove(uid)
 
-        return self.transport.write(JSONEncoder().encode({
-            'status': self.status,
-            'log': log
-        }))
+        return self.send(status=self.status, log=log)
 
     def kill_app(self, appid):
         if appid in self.running:
@@ -110,40 +114,70 @@ class CommandShell(protocol.Protocol):
     def dataReceived(self, data):
         print data
         while data:
-            decode, index = JSONDecoder().raw_decode(data)
+            decode, index = json_decode(data)
             data = data[index:]
             print decode
 
             print self.commands
-            if decode.get('command') == 'list':
-                self.transport.write(JSONEncoder().encode(
-                    {'commands': self.commands}))
+            command = decode.get('command')
 
-            elif decode.get('command') == 'mouse':
-                pos = self.mouse.position()
+            if command == 'list':
+                self.send(commands=self.commands)
+
+            elif command == 'mouse':
+                pos = mouse.get_pos()
                 action = decode.get('action')
 
                 if action == 'click':
-                    self.mouse.click(*pos,
-                                     button=decode.get('b'),
-                                     n=decode.get('n'))
+                    mouse.click(button=BUTTONS[decode.get('b')])
 
                 elif action == 'move':
-                    self.mouse.move(pos[0] + decode.get('dx'),
-                                    pos[1] + decode.get('dy'))
+                    try:
+                        mouse.move(pos[0] + decode.get('dx'),
+                                   pos[1] + decode.get('dy'))
+                    except ValueError:
+                        pass
 
                 elif action == 'press':
-                    self.mouse.press(*pos, button=decode.get('b'))
+                    mouse.toggle(True, button=BUTTONS[decode.get('b')])
 
                 elif action == 'release':
-                    self.mouse.release(*pos, button=decode.get('b'))
+                    mouse.toggle(False, button=BUTTONS[decode.get('b')])
 
-            elif decode.get('command') == 'status':
+            elif command == 'type':
+                key.type_string(decode['string'])
+
+            elif command == 'press_key':
+                key.toggle(getattr(key, 'K_' + decode['key'].upper()), True)
+
+            elif command == 'release_key':
+                key.toggle(getattr(key, 'K_' + decode['key'].upper()), False)
+
+            elif command == 'status':
                     self.update_status()
 
-            elif decode.get('command') == 'kill':
+            elif command == 'kill':
                 self.kill_app(decode['uid'])
                 self.update_status()
+
+            elif command == 'capture':
+                pos = mouse.get_pos()
+                size = decode.get('size')
+                rect = ((
+                    pos[0] - size[0] / 2,
+                    pos[1] - size[1] / 2
+                ), (
+                    size[0] / 2,
+                    size[1] / 2
+                ))
+
+                try:
+                    bitmap.capture_screen(rect).save('tmp.bmp')
+
+                    with open('tmp.bmp') as f:
+                        self.send(capture=f.read().encode('base64'), size=size)
+                except ValueError:
+                    pass
 
             elif decode.get('run') in zip(*self.commands)[0]:
                 self.execute(decode.get('run'), decode.get('arguments'))
