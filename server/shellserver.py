@@ -135,7 +135,8 @@ class CommandShell(protocol.Protocol):
                 action = decode.get('action')
 
                 if action == 'click':
-                    mouse.click(BUTTONS[decode.get('b') - 1])
+                    for i in range(decode.get('n') or 1):
+                        mouse.click(BUTTONS[decode.get('b') - 1])
 
                 elif action == 'move':
                     try:
@@ -169,16 +170,17 @@ class CommandShell(protocol.Protocol):
             elif command == 'capture':
                 pos = mouse.get_pos()
                 size = decode.get('size')
+                #print "capturing %s" % size
                 rect = ((
                     max(0, pos[0] - size[0] / 2),
                     max(0, pos[1] - size[1] / 2)
-                ), (size[0] / 2, size[1] / 2))
+                ), (size[0], size[1]))
 
-                print rect
                 bitmap.capture_screen(rect).save('tmp.bmp')
 
                 with open('tmp.bmp') as f:
-                    self.send(capture=f.read().encode('base64'), size=size)
+                    self.send(capture=f.read().encode('base64'),
+                              size=size)
 
             elif decode.get('run') in zip(*self.commands)[0]:
                 self.execute(decode.get('run'), decode.get('arguments'))

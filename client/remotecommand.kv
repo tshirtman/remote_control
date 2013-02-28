@@ -10,7 +10,7 @@ BoxLayout:
             on_text_validate:
                 self.focus = False
                 port.focus = True
-            on_focus: app.propose_addresses(self)
+            on_touch_up: app.propose_addresses(self)
             on_text: app.propose_addresses(self)
 
         TextInput:
@@ -45,17 +45,25 @@ BoxLayout:
         TabbedPanelItem:
             text: 'image'
             BoxLayout:
-                Slider:
+                BoxLayout:
                     orientation: 'vertical'
-                    min: 6
-                    max: 9
-                    step: 1
-                    value: 8
-                    on_value:
-                        print self.value, 2 ** self.value
-                        app.image_size = int(2 ** self.value)
                     size_hint_x: None
                     width: '20sp'
+
+                    Slider:
+                        id: image_size_slider
+                        orientation: 'vertical'
+                        min: 6
+                        max: 9
+                        step: 1
+                        value: 8
+                        on_value:
+                            print self.value, 2 ** self.value
+                            app.image_size = int(2 ** self.value)
+                    Label:
+                        size_hint_y: None
+                        height: 50
+                        text: '%s\n%s' % (image_size_slider.value, app.image_size)
                 Image:
                     on_parent: app.screen_texture = self
                     allow_stretch: True
@@ -64,22 +72,6 @@ BoxLayout:
     TabbedPanel:
         size_hint_y: .4
         do_default_tab: False
-        TabbedPanelItem:
-            text: 'logs'
-            ScrollView:
-                Label:
-                    size_hint_y: None
-                    text_size: self.width, None
-                    height: self.texture_size[1]
-                    text: app.log
-
-                    canvas:
-                        Color:
-                            rgba: .3, .3, .3, .5
-                        Rectangle:
-                            pos: 0, 0
-                            size: self.width, self.top
-
         TabbedPanelItem:
             text: 'mouse'
             BoxLayout:
@@ -149,3 +141,20 @@ BoxLayout:
                 BoxLayout:
                     orientation: 'vertical'
                     on_parent: app.status = self
+
+        TabbedPanelItem:
+            text: 'logs'
+            ScrollView:
+                Label:
+                    size_hint_y: None
+                    text_size: self.width, None
+                    height: self.texture_size[1]
+                    text: app.log
+
+                    canvas:
+                        Color:
+                            rgba: .3, .3, .3, .5
+                        Rectangle:
+                            pos: 0, 0
+                            size: self.width, self.top
+

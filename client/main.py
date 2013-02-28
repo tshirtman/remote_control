@@ -82,10 +82,13 @@ class RemoteCommand(App):
     log = StringProperty('')
     mouse_sensivity = NumericProperty(1)
     screen_texture = ObjectProperty(None)
-    image_size = NumericProperty(7)
+    image_size = NumericProperty(128)
     dropdown = ObjectProperty(None)
 
     def connect(self, ip, port):
+        if self.dropdown:
+            self.dropdown.dismiss()
+
         point = TCP4ClientEndpoint(reactor, ip, int(port))
         d = point.connect(CommandClientFactory())
         d.addCallback(self.got_protocol)
@@ -98,7 +101,8 @@ class RemoteCommand(App):
         self.protocol.sendMessage(json_encode(kwargs))
 
     def update_screen(self, *args):
-        self.send(command='capture', size=(self.image_size, self.image_size))
+        self.send(command='capture',
+                  size=(self.image_size, self.image_size))
 
     def propose_addresses(self, address_input):
         if address_input.focus:
@@ -118,8 +122,7 @@ class RemoteCommand(App):
                              self.connect(*x.text.split(':')))
                     self.dropdown.add_widget(lbl)
 
-            Clock.schedule_once(lambda *x:
-                                self.dropdown.open(address_input.parent), 1)
+            self.dropdown.open(address_input.parent)
 
     def receive(self, data):
         while data:
