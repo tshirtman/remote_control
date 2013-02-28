@@ -13,7 +13,7 @@ package.domain = fr.tshirtman
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,kv
+source.include_exts = py,kv,bmp,png
 
 # (list) Source files to exclude (let empty to not excluding anything)
 #source.exclude_exts = spec
@@ -29,13 +29,14 @@ version.filename = %(source.dir)s/main.py
 requirements = twisted,kivy
 
 # (str) Presplash of the application
-#presplash.filename = %(source.dir)s/data/presplash.png
+presplash.filename = %(source.dir)s/icon.png
 
 # (str) Icon of the application
-#icon.filename = %(source.dir)s/data/icon.png
+icon.filename = %(source.dir)s/icon.png
 
 # (str) orientation of the application
 orientation = portrait
+
 #
 # Android specific
 #

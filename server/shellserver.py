@@ -27,7 +27,7 @@ class CommandShell(protocol.Protocol):
     def load_config(self, *args):
         if args:
             masks = inotify.humanReadableMask(args[2])
-            print masks
+            #print masks
             if not set(masks).intersection(set(('delete_self', ))):
                 return
 
@@ -40,7 +40,7 @@ class CommandShell(protocol.Protocol):
 
         notifier = inotify.INotify()
         notifier.startReading()
-        print "adding watcher"
+        #print "adding watcher"
         notifier.watch(filepath.FilePath(CONFIG), callbacks=[self.load_config])
         print "config watcher started"
 
@@ -112,13 +112,19 @@ class CommandShell(protocol.Protocol):
                     raise e
 
     def dataReceived(self, data):
-        print data
         while data:
-            decode, index = json_decode(data)
-            data = data[index:]
-            print decode
+            try:
+                decode, index = json_decode(data)
+            except ValueError:
+                # something went wrong.. FIXME
+                return
 
-            print self.commands
+            data = data[index:]
+
+            if not isinstance(decode, dict):
+                # something went wrong, gtfo for now, FIXME
+                return
+
             command = decode.get('command')
 
             if command == 'list':
@@ -129,7 +135,7 @@ class CommandShell(protocol.Protocol):
                 action = decode.get('action')
 
                 if action == 'click':
-                    mouse.click(button=BUTTONS[decode.get('b')])
+                    mouse.click(BUTTONS[decode.get('b') - 1])
 
                 elif action == 'move':
                     try:
@@ -139,10 +145,10 @@ class CommandShell(protocol.Protocol):
                         pass
 
                 elif action == 'press':
-                    mouse.toggle(True, button=BUTTONS[decode.get('b')])
+                    mouse.toggle(True, BUTTONS[decode.get('b') - 1])
 
                 elif action == 'release':
-                    mouse.toggle(False, button=BUTTONS[decode.get('b')])
+                    mouse.toggle(False, BUTTONS[decode.get('b') - 1])
 
             elif command == 'type':
                 key.type_string(decode['string'])
@@ -164,20 +170,15 @@ class CommandShell(protocol.Protocol):
                 pos = mouse.get_pos()
                 size = decode.get('size')
                 rect = ((
-                    pos[0] - size[0] / 2,
-                    pos[1] - size[1] / 2
-                ), (
-                    size[0] / 2,
-                    size[1] / 2
-                ))
+                    max(0, pos[0] - size[0] / 2),
+                    max(0, pos[1] - size[1] / 2)
+                ), (size[0] / 2, size[1] / 2))
 
-                try:
-                    bitmap.capture_screen(rect).save('tmp.bmp')
+                print rect
+                bitmap.capture_screen(rect).save('tmp.bmp')
 
-                    with open('tmp.bmp') as f:
-                        self.send(capture=f.read().encode('base64'), size=size)
-                except ValueError:
-                    pass
+                with open('tmp.bmp') as f:
+                    self.send(capture=f.read().encode('base64'), size=size)
 
             elif decode.get('run') in zip(*self.commands)[0]:
                 self.execute(decode.get('run'), decode.get('arguments'))

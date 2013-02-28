@@ -4,7 +4,7 @@ from kivy.properties import \
     ListProperty, ObjectProperty, StringProperty, NumericProperty
 from kivy.support import install_twisted_reactor
 
-from kivy.metrics import dp
+from kivy.metrics import dp, sp
 from kivy.clock import Clock
 
 from kivy.uix.boxlayout import BoxLayout
@@ -12,7 +12,7 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
-from kivy.core.image import Image as CoreImage
+from kivy.uix.dropdown import DropDown
 
 # installing twisted reactor the kivy way before importing anything from
 # twisted
@@ -82,29 +82,60 @@ class RemoteCommand(App):
     log = StringProperty('')
     mouse_sensivity = NumericProperty(1)
     screen_texture = ObjectProperty(None)
+    image_size = NumericProperty(7)
+    dropdown = ObjectProperty(None)
 
     def connect(self, ip, port):
-        point = TCP4ClientEndpoint(reactor, ip, port)
+        point = TCP4ClientEndpoint(reactor, ip, int(port))
         d = point.connect(CommandClientFactory())
         d.addCallback(self.got_protocol)
         self.log += u"trying to connect…\n"
 
         if ip not in self.config.items('connections'):
-            self.config.set('connections', ip, port)
+            self.config.set('connections', ip, str(port))
 
     def send(self, *args, **kwargs):
         self.protocol.sendMessage(json_encode(kwargs))
 
     def update_screen(self, *args):
-        self.send(command='capture', size=(128, 128))
+        self.send(command='capture', size=(self.image_size, self.image_size))
+
+    def propose_addresses(self, address_input):
+        if address_input.focus:
+            if not self.dropdown:
+                self.dropdown = DropDown()
+                #self.dropdown.bind(on_select=self.complete_address)
+            else:
+                self.dropdown.clear_widgets()
+
+            connections = self.config.items('connections')
+
+            for c in connections:
+                if c[0].startswith(address_input.text):
+                    lbl = Button(text=':'.join(c), size_hint_y=None,
+                                 height=sp(20))
+                    lbl.bind(on_press=lambda x:
+                             self.connect(*x.text.split(':')))
+                    self.dropdown.add_widget(lbl)
+
+            Clock.schedule_once(lambda *x:
+                                self.dropdown.open(address_input.parent), 1)
 
     def receive(self, data):
         while data:
-            #print data
-            datadict, index = json_decode(data)
+            try:
+                datadict, index = json_decode(data)
+            except ValueError:
+                # corrupted data? gtfo for now, FIXME
+                return
+
             data = data[index:]
 
             #self.log += 'got data: %s\n' % datadict
+            if not isinstance(datadict, dict):
+                # something went wrong, gtfo for now, FIXME
+                return
+
             if 'commands' in datadict:
                 self.commands = datadict['commands']
 
@@ -126,13 +157,13 @@ class RemoteCommand(App):
                 with open('tmp.bmp', 'w') as f:
                     f.write(datadict['capture'].decode('base64'))
 
-                self.screen_texture = CoreImage('tmp.bmp').texture
+                self.screen_texture.reload()
 
     def got_protocol(self, p):
         self.log += "got protocol\n"
         self.protocol = p
         self.send(command='list')
-        Clock.schedule_interval(self.update_screen, 1)
+        Clock.schedule_interval(self.update_screen, .1)
 
     def on_commands(self, *args):
         self.container.clear_widgets()
@@ -211,7 +242,7 @@ class RemoteCommand(App):
         return True
 
     def populate_keyboard(self, grid):
-        b = Button(text='esc')
+        b = Button(text='escape')
         b.bind(on_press=self.press_special_key)
         b.bind(on_release=self.release_special_key)
         grid.add_widget(b)

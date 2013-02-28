@@ -54,6 +54,9 @@ Credits
 =======
 
 Remote Control uses:
-- Twisted for the network management, which make things so much easier
-- Kivy for the client gui
-- PyMouse for cross plateform mouse control on the server side.
+- Twisted for the network management, which make things so much easier.
+- Kivy for the client gui.
+- autopy for cross plateform keyboard/mouse control on the server side.
+
+Icon/splashscreen comes from http://www.clker.com/clipart-10591.html and is
+licenced as CC0
