@@ -1,7 +1,7 @@
 # encoding: utf-8
 from kivy.app import App
-from kivy.properties import \
-    ListProperty, ObjectProperty, StringProperty, NumericProperty
+from kivy.properties import ListProperty, ObjectProperty, StringProperty,\
+    NumericProperty, BooleanProperty
 from kivy.support import install_twisted_reactor
 
 from kivy.metrics import dp, sp
@@ -82,6 +82,7 @@ class RemoteCommand(App):
     log = StringProperty('')
     mouse_sensivity = NumericProperty(1)
     screen_texture = ObjectProperty(None)
+    capture_images = BooleanProperty(False)
     image_size = NumericProperty(128)
     dropdown = ObjectProperty(None)
 
@@ -101,8 +102,9 @@ class RemoteCommand(App):
         self.protocol.sendMessage(json_encode(kwargs))
 
     def update_screen(self, *args):
-        self.send(command='capture',
-                  size=(self.image_size, self.image_size))
+        if self.capture_images:
+            self.send(command='capture',
+                      size=(self.image_size, self.image_size))
 
     def propose_addresses(self, address_input):
         if address_input.focus:
@@ -157,6 +159,7 @@ class RemoteCommand(App):
                     self.status.add_widget(box)
 
             if 'capture' in datadict:
+                print "receiving capture"
                 with open('tmp.bmp', 'w') as f:
                     f.write(datadict['capture'].decode('base64'))
 
@@ -166,6 +169,7 @@ class RemoteCommand(App):
         self.log += "got protocol\n"
         self.protocol = p
         self.send(command='list')
+        print "adding schedule"
         Clock.schedule_interval(self.update_screen, .1)
 
     def on_commands(self, *args):

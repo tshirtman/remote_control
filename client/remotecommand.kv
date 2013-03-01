@@ -48,7 +48,20 @@ BoxLayout:
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_x: None
-                    width: '20sp'
+                    width: '50sp'
+
+                    Label:
+                        text: 'capture images'
+                        text_size: self.parent.width, None
+                        size_hint_y: None
+                        height: self.texture_size[1]
+
+                    CheckBox:
+                        value: app.capture_images
+                        on_active:
+                            app.capture_images = self.active
+                        size_hint_y: None
+                        height: 20
 
                     Slider:
                         id: image_size_slider
