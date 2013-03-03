@@ -361,7 +361,7 @@ class RemoteCommand(App):
         grid.add_widget(Widget())
 
         for t in 'up', 'down':
-            b = Button(text='pg%s' % t)
+            b = Button(text='page%s' % t)
             b.bind(on_press=self.press_special_key)
             b.bind(on_release=self.release_special_key)
             grid.add_widget(b)
