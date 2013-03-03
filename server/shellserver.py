@@ -194,12 +194,12 @@ class CommandShell(protocol.Protocol):
                 ), (size[0], size[1]))
 
                 try:
-                    bitmap.capture_screen(rect).save('tmp.bmp')
+                    bitmap.capture_screen(rect).save('tmp.png')
                 except ValueError:
                     return
 
                 #print "sending capture"
-                self.send_image('tmp.bmp')
+                self.send_image('tmp.png')
 
             elif decode.get('run') in zip(*self.commands)[0]:
                 self.execute(decode.get('run'), decode.get('arguments'))

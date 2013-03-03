@@ -168,7 +168,7 @@ class RemoteCommand(App):
                 #print "receiving capture"
                 uid = datadict['image']
                 if uid not in self.images:
-                    fn = 'tmp-%s.bmp' % uid
+                    fn = 'tmp-%s.png' % uid
                     self.images[uid] = [
                         fn,  # filename
                         open(fn, 'w'),  # file descriptor
@@ -186,7 +186,7 @@ class RemoteCommand(App):
                     if not data:
                         #print "empty chunk, closing"
                         f.close()
-                        move(fn, 'tmp.bmp')
+                        move(fn, 'tmp.png')
                         self.screen_texture.reload()
                         del self.images[uid]
 
