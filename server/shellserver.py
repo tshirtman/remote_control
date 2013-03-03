@@ -198,6 +198,8 @@ class CommandShell(protocol.Protocol):
                 except ValueError:
                     return
 
+                self.send(mouse_pos=(pos[0] - rect[0][0], pos[1] - rect[0][1]))
+
                 #print "sending capture"
                 self.send_image('tmp.png')
 

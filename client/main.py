@@ -86,6 +86,7 @@ class RemoteCommand(App):
     image_size = NumericProperty(128)
     dropdown = ObjectProperty(None)
     mods = DictProperty({})
+    mouse_pos = ListProperty([0, 0])
 
     def connect(self, ip, port):
         if self.dropdown:
@@ -163,6 +164,9 @@ class RemoteCommand(App):
                     box.add_widget(label)
                     box.add_widget(button)
                     self.status.add_widget(box)
+
+            if 'mouse_pos' in datadict:
+                self.mouse_pos = datadict['mouse_pos']
 
             if 'image' in datadict:
                 #print "receiving capture"

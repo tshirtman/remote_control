@@ -86,6 +86,30 @@ BoxLayout:
                         allow_stretch: True
                         source: 'tmp.png'
 
+                        canvas.after:
+                            Color:
+                                rgba: 1, 1, 1, .5
+
+                            Rectangle:
+                                pos:
+                                    self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size - 10,\
+                                    self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size - 10
+                                size: 30, 30
+                            Color:
+                                rgba: 0, 0, 0, .5
+                            Rectangle:
+                                pos:
+                                    self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size - 10,\
+                                    self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size
+                                size: 30, 10
+
+                            Rectangle:
+                                pos:
+                                    self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size,\
+                                    self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size - 10
+                                size: 10, 30
+
+
     TabbedPanel:
         size_hint_y: .4
         do_default_tab: False
