@@ -349,8 +349,8 @@ class RemoteCommand(App):
         b.bind(on_release=self.release_special_key)
         grid.add_widget(b)
 
-        for i in range(5):
-            grid.add_widget(Widget())
+        #for i in range(5):
+            #grid.add_widget(Widget())
 
         for t in 'left', 'down', 'right':
             b = Button(text=t)
@@ -366,7 +366,8 @@ class RemoteCommand(App):
             b.bind(on_release=self.release_special_key)
             grid.add_widget(b)
 
-        grid.add_widget(Widget())
+        for i in range(6):
+            grid.add_widget(Widget())
 
         b = Button(text='return')
         b.bind(on_press=self.press_special_key)
