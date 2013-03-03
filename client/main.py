@@ -1,10 +1,10 @@
 # encoding: utf-8
 from kivy.app import App
 from kivy.properties import ListProperty, ObjectProperty, StringProperty,\
-    NumericProperty, BooleanProperty
+    NumericProperty, BooleanProperty, DictProperty
 from kivy.support import install_twisted_reactor
 
-from kivy.metrics import dp, sp
+from kivy.metrics import sp
 from kivy.clock import Clock
 
 from kivy.uix.boxlayout import BoxLayout
@@ -23,8 +23,8 @@ from twisted.internet.protocol import Factory, Protocol
 from twisted.internet.endpoints import TCP4ClientEndpoint
 
 from ConfigParser import ConfigParser
-
 from functools import partial
+from shutil import move
 
 from json import JSONDecoder
 from json import JSONEncoder
@@ -82,9 +82,10 @@ class RemoteCommand(App):
     log = StringProperty('')
     mouse_sensivity = NumericProperty(1)
     screen_texture = ObjectProperty(None)
-    capture_images = BooleanProperty(False)
+    capture_fps = NumericProperty(0)
     image_size = NumericProperty(128)
     dropdown = ObjectProperty(None)
+    mods = DictProperty({})
 
     def connect(self, ip, port):
         if self.dropdown:
@@ -94,6 +95,7 @@ class RemoteCommand(App):
         d = point.connect(CommandClientFactory())
         d.addCallback(self.got_protocol)
         self.log += u"trying to connect…\n"
+        self.leftover = ''
 
         if ip not in self.config.items('connections'):
             self.config.set('connections', ip, str(port))
@@ -102,9 +104,8 @@ class RemoteCommand(App):
         self.protocol.sendMessage(json_encode(kwargs))
 
     def update_screen(self, *args):
-        if self.capture_images:
-            self.send(command='capture',
-                      size=(self.image_size, self.image_size))
+        self.send(command='capture',
+                  size=(self.image_size, self.image_size))
 
     def propose_addresses(self, address_input):
         if address_input.focus:
@@ -119,26 +120,31 @@ class RemoteCommand(App):
             for c in connections:
                 if c[0].startswith(address_input.text):
                     lbl = Button(text=':'.join(c), size_hint_y=None,
-                                 height=sp(20))
+                                 height=sp(30))
                     lbl.bind(on_press=lambda x:
                              self.connect(*x.text.split(':')))
                     self.dropdown.add_widget(lbl)
 
             self.dropdown.open(address_input.parent)
 
-    def receive(self, data):
-        while data:
+    def receive(self, stream):
+        #if len(stream) > 1000: import ipdb; ipdb.set_trace()
+        stream = self.leftover + stream
+        while stream:
             try:
-                datadict, index = json_decode(data)
+                datadict, index = json_decode(stream)
+                self.leftover = ''
             except ValueError:
-                # corrupted data? gtfo for now, FIXME
+                # incomplete data, keep to analyse later
+                self.leftover = stream
                 return
 
-            data = data[index:]
+            stream = stream[index:]
 
             #self.log += 'got data: %s\n' % datadict
             if not isinstance(datadict, dict):
                 # something went wrong, gtfo for now, FIXME
+                print "didn't get a dict for datadict"
                 return
 
             if 'commands' in datadict:
@@ -158,25 +164,63 @@ class RemoteCommand(App):
                     box.add_widget(button)
                     self.status.add_widget(box)
 
-            if 'capture' in datadict:
-                print "receiving capture"
-                with open('tmp.bmp', 'w') as f:
-                    f.write(datadict['capture'].decode('base64'))
+            if 'image' in datadict:
+                #print "receiving capture"
+                uid = datadict['image']
+                if uid not in self.images:
+                    fn = 'tmp-%s.bmp' % uid
+                    self.images[uid] = [
+                        fn,  # filename
+                        open(fn, 'w'),  # file descriptor
+                        0,  # next expected chunk
+                        {}  # chunks arrived too early
+                    ]
 
-                self.screen_texture.reload()
+                fn, f, c, chunks = self.images[uid]
+
+                data = datadict['data']
+                chunk = datadict['chunk']
+                #print'receiving %s chunk %s data %s' % (uid, chunk, data[:10])
+
+                if chunk == c:
+                    if not data:
+                        #print "empty chunk, closing"
+                        f.close()
+                        move(fn, 'tmp.bmp')
+                        self.screen_texture.reload()
+                        del self.images[uid]
+
+                    else:
+                        f.write(datadict['data'].decode('base64'))
+                        #print "writting chunk", c
+                        c += 1
+
+                else:
+                    chunks[chunk] = data.decode('base64')
+
+                while c in chunks:
+                    #print "applying chunk %s that we got before" % c
+                    f.write(chunks[c])
+                    c += 1
+
+                if data:
+                    self.images[uid] = fn, f, c, chunks
 
     def got_protocol(self, p):
         self.log += "got protocol\n"
         self.protocol = p
         self.send(command='list')
         print "adding schedule"
-        Clock.schedule_interval(self.update_screen, .1)
+
+    def on_capture_fps(self, *args):
+        Clock.unschedule(self.update_screen)
+        Clock.schedule_interval(self.update_screen, 1 / self.capture_fps)
 
     def on_commands(self, *args):
         self.container.clear_widgets()
         self.log += 'got a list of commands!\n'
         for command, arguments in self.commands:
-            box = BoxLayout(height=dp(30))
+            box = BoxLayout(height=sp(30))
             button = Button(text=command)
 
             args_inputs = []
@@ -228,6 +272,7 @@ class RemoteCommand(App):
     def on_start(self, *args):
         self.config = ConfigParser()
         self.config.read(CONFIG)
+        self.images = {}
 
         if not self.config.has_section('connections'):
             self.config.add_section('connections')
@@ -270,7 +315,41 @@ class RemoteCommand(App):
         b.bind(on_release=self.release_special_key)
         grid.add_widget(b)
 
-        for i in range(11):
+        for i in range(2):
+            grid.add_widget(Widget())
+
+        for t in 'home', 'end':
+            b = Button(text=t)
+            b.bind(on_press=self.press_special_key)
+            b.bind(on_release=self.release_special_key)
+            grid.add_widget(b)
+
+        grid.add_widget(Widget())
+
+        b = Button(text='shift')
+        grid.add_widget(b)
+        self.mods['shift'] = b
+
+        b = Button(text='control')
+        grid.add_widget(b)
+        self.mods['control'] = b
+
+        b = Button(text='alt')
+        grid.add_widget(b)
+        self.mods['alt'] = b
+
+        b = Button(text='meta')
+        grid.add_widget(b)
+        self.mods['meta'] = b
+
+        grid.add_widget(Widget())
+
+        b = Button(text='backspace')
+        b.bind(on_press=self.press_special_key)
+        b.bind(on_release=self.release_special_key)
+        grid.add_widget(b)
+
+        for i in range(5):
             grid.add_widget(Widget())
 
         for t in 'left', 'down', 'right':

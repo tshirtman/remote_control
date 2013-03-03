@@ -4,7 +4,7 @@ from ConfigParser import ConfigParser
 from subprocess import Popen, PIPE
 from uuid import uuid4
 from time import time
-from autopy import mouse, key, bitmap
+from autopy import mouse, key, bitmap, screen
 
 from json import JSONDecoder
 from json import JSONEncoder
@@ -15,6 +15,8 @@ json_encode = JSONEncoder().encode
 BUTTONS = mouse.LEFT_BUTTON, mouse.RIGHT_BUTTON, mouse.CENTER_BUTTON
 
 CONFIG = 'shellserver.cfg'
+
+CHUNKSIZE = 1 * 1024
 
 
 class CommandShell(protocol.Protocol):
@@ -46,6 +48,20 @@ class CommandShell(protocol.Protocol):
 
     def send(self, *args, **kwargs):
         self.transport.write(json_encode(kwargs))
+
+    def send_image(self, filename):
+        uuid = str(time())
+        with open(filename) as f:
+            c = 0
+            while True:
+                s = f.read(CHUNKSIZE).encode('base64')
+                #print 'sending chunk %s: %s' % (c, s[:20])
+                self.send(image=uuid, data=s, chunk=c)
+                c += 1
+
+                if not s:
+                    #print "end"
+                    break
 
     def execute(self, command, arguments):
         print "running %s" % command
@@ -170,17 +186,20 @@ class CommandShell(protocol.Protocol):
             elif command == 'capture':
                 pos = mouse.get_pos()
                 size = decode.get('size')
+                maxx, maxy = screen.get_size()
                 #print "capturing %s" % size
                 rect = ((
-                    max(0, pos[0] - size[0] / 2),
-                    max(0, pos[1] - size[1] / 2)
+                    max(0, min((pos[0] - size[0] / 2), maxx - size[0])),
+                    max(0, min((pos[1] - size[1] / 2), maxy - size[1]))
                 ), (size[0], size[1]))
 
-                bitmap.capture_screen(rect).save('tmp.bmp')
+                try:
+                    bitmap.capture_screen(rect).save('tmp.bmp')
+                except ValueError:
+                    return
 
-                with open('tmp.bmp') as f:
-                    self.send(capture=f.read().encode('base64'),
-                              size=size)
+                #print "sending capture"
+                self.send_image('tmp.bmp')
 
             elif decode.get('run') in zip(*self.commands)[0]:
                 self.execute(decode.get('run'), decode.get('arguments'))

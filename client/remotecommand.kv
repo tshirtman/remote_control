@@ -39,48 +39,52 @@ BoxLayout:
                         orientation: 'vertical'
                         size_hint_y: None
                         height: sum((x.height for x in self.children))
-                        Button:
-                            text: 'placeholder'
 
         TabbedPanelItem:
             text: 'image'
             BoxLayout:
+                orientation: 'vertical'
                 BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_x: None
-                    width: '50sp'
-
-                    Label:
-                        text: 'capture images'
-                        text_size: self.parent.width, None
-                        size_hint_y: None
-                        height: self.texture_size[1]
-
-                    CheckBox:
-                        value: app.capture_images
-                        on_active:
-                            app.capture_images = self.active
-                        size_hint_y: None
-                        height: 20
+                    size_hint_y: None
+                    height: fps_label.texture_size[1]
 
                     Slider:
-                        id: image_size_slider
-                        orientation: 'vertical'
-                        min: 6
-                        max: 9
+                        id: fps
+                        min: 0
+                        max: 30
                         step: 1
-                        value: 8
-                        on_value:
-                            print self.value, 2 ** self.value
-                            app.image_size = int(2 ** self.value)
+                        value: app.capture_fps
+                        on_value: app.capture_fps = self.value
                     Label:
-                        size_hint_y: None
-                        height: 50
-                        text: '%s\n%s' % (image_size_slider.value, app.image_size)
-                Image:
-                    on_parent: app.screen_texture = self
-                    allow_stretch: True
-                    source: 'tmp.bmp'
+                        id: fps_label
+                        size: self.texture_size
+                        size_hint_x: None
+                        text: '%s fps' % fps.value
+
+                BoxLayout:
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_x: None
+                        width: '50sp'
+
+                        Slider:
+                            id: image_size_slider
+                            orientation: 'vertical'
+                            min: 6
+                            max: 9
+                            step: 1
+                            value: 8
+                            on_value:
+                                print self.value, 2 ** self.value
+                                app.image_size = int(2 ** self.value)
+                        Label:
+                            size_hint_y: None
+                            height: 50
+                            text: '%s\n%s' % (image_size_slider.value, app.image_size)
+                    Image:
+                        on_parent: app.screen_texture = self
+                        allow_stretch: True
+                        source: 'tmp.bmp'
 
     TabbedPanel:
         size_hint_y: .4
