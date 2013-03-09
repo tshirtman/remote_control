@@ -1,7 +1,7 @@
 # encoding: utf-8
 from kivy.app import App
 from kivy.properties import ListProperty, ObjectProperty, StringProperty,\
-    NumericProperty, BooleanProperty, DictProperty
+    NumericProperty, DictProperty
 from kivy.support import install_twisted_reactor
 
 from kivy.metrics import sp
@@ -87,11 +87,15 @@ class RemoteCommand(App):
     dropdown = ObjectProperty(None)
     mods = DictProperty({})
     mouse_pos = ListProperty([0, 0])
+    protocol = ObjectProperty(None)
+    interface = ObjectProperty(None)
+    processes = DictProperty({})
 
     def connect(self, ip, port):
         if self.dropdown:
             self.dropdown.dismiss()
 
+        self.protocol = None
         point = TCP4ClientEndpoint(reactor, ip, int(port))
         d = point.connect(CommandClientFactory())
         d.addCallback(self.got_protocol)
@@ -105,8 +109,9 @@ class RemoteCommand(App):
         self.protocol.sendMessage(json_encode(kwargs))
 
     def update_screen(self, *args):
-        self.send(command='capture',
-                  size=(self.image_size, self.image_size))
+        if self.interface.current_tab.text == 'image':
+            self.send(command='capture',
+                      size=(self.image_size, self.image_size))
 
     def propose_addresses(self, address_input):
         if address_input.focus:
@@ -129,7 +134,6 @@ class RemoteCommand(App):
             self.dropdown.open(address_input.parent)
 
     def receive(self, stream):
-        #if len(stream) > 1000: import ipdb; ipdb.set_trace()
         stream = self.leftover + stream
         while stream:
             try:
@@ -151,19 +155,30 @@ class RemoteCommand(App):
             if 'commands' in datadict:
                 self.commands = datadict['commands']
 
-            if 'status' in datadict:
+            if 'process' in datadict:
+                process = datadict['process']
                 status = datadict['status']
-                self.status.clear_widgets()
+                if status == 'started':
+                    button = Button(text=datadict['name'],
+                                    size_hint_y='None',
+                                    height='30dp')
 
-                for uid, command in status.items():
-                    box = BoxLayout(size_hint_y='None', height='30dp')
-                    label = Label(text=' '.join(command['command']))
-                    button = Button(text='x')
-                    button.bind(on_press=partial(
-                        self.send, command='kill', uid=uid))
-                    box.add_widget(label)
-                    box.add_widget(button)
-                    self.status.add_widget(box)
+                    self.processes[process] = {
+                        'button': button,
+                        'out': '', 'err': ''}
+
+                    button.bind(on_press=partial(self.process_menu, process))
+                    self.status.add_widget(button)
+
+                elif status == 'ended':
+                    button = self.processes[process]['button']
+                    button.text += ' - DONE'
+
+                elif 'out' in datadict:
+                    self.processes[process]['out'] += datadict['out']
+
+                elif 'err' in datadict:
+                    self.processes[process]['err'] += datadict['err']
 
             if 'mouse_pos' in datadict:
                 self.mouse_pos = datadict['mouse_pos']
@@ -210,15 +225,27 @@ class RemoteCommand(App):
                 if data:
                     self.images[uid] = fn, f, c, chunks
 
+    def process_menu(self, process, *args):
+        pass
+
     def got_protocol(self, p):
         self.log += "got protocol\n"
         self.protocol = p
         self.send(command='list')
-        print "adding schedule"
+
+    #def on_protocol(self, *args):
+        #if not self.protocol:
+            #self.popup = Popup()
+            #self.interface.add_widget(self.popup)
+
+        #elif self.popup:
+            #self.interface.remove_widget(self.popup)
+            #self.popup = None
 
     def on_capture_fps(self, *args):
         Clock.unschedule(self.update_screen)
-        Clock.schedule_interval(self.update_screen, 1 / self.capture_fps)
+        if self.capture_fps:
+            Clock.schedule_interval(self.update_screen, 1 / self.capture_fps)
 
     def on_commands(self, *args):
         self.container.clear_widgets()

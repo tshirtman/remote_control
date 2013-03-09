@@ -1,201 +1,202 @@
-BoxLayout:
-    orientation: 'vertical'
+FloatLayout:
     BoxLayout:
-        size_hint_y: None
-        height: '35sp'
+        orientation: 'vertical'
+        BoxLayout:
+            size_hint_y: None
+            height: '35sp'
 
-        TextInput:
-            mutiline: False
-            id: address
-            on_text_validate:
-                self.focus = False
-                port.focus = True
-            on_touch_up: app.propose_addresses(self)
-            on_text: app.propose_addresses(self)
+            TextInput:
+                mutiline: False
+                id: address
+                on_text_validate:
+                    self.focus = False
+                    port.focus = True
+                on_touch_up: app.propose_addresses(self)
+                on_text: app.propose_addresses(self)
 
-        TextInput:
-            multiline: False
-            id: port
-            on_text_validate: app.connect(address.text, port.text)
+            TextInput:
+                multiline: False
+                id: port
+                on_text_validate: app.connect(address.text, port.text)
 
-        Button:
-            text: 'connect'
-            size_hint_x: None
-            width: self.texture_size[0] + dp(2)
-            on_press: app.connect(address.text, port.text)
+            Button:
+                text: 'connect'
+                size_hint_x: None
+                width: self.texture_size[0] + dp(2)
+                on_press: app.connect(address.text, port.text)
 
-    TabbedPanel:
-        do_default_tab: False
-        TabbedPanelItem:
-            text: 'commands'
-            ScrollView:
-                do_scroll_x: False
-                do_scroll_y: True
+        TabbedPanel:
+            on_parent: app.interface = self
+            do_default_tab: False
+            TabbedPanelItem:
+                text: 'commands'
+                ScrollView:
+                    do_scroll_x: False
+                    do_scroll_y: True
 
+                    BoxLayout:
+                        orientation: 'vertical'
+                        BoxLayout:
+                            on_parent: app.container = self
+                            orientation: 'vertical'
+                            size_hint_y: None
+                            height: sum((x.height for x in self.children))
+
+            TabbedPanelItem:
+                text: 'image'
                 BoxLayout:
                     orientation: 'vertical'
                     BoxLayout:
-                        on_parent: app.container = self
-                        orientation: 'vertical'
                         size_hint_y: None
-                        height: sum((x.height for x in self.children))
-
-        TabbedPanelItem:
-            text: 'image'
-            BoxLayout:
-                orientation: 'vertical'
-                BoxLayout:
-                    size_hint_y: None
-                    height: fps_label.texture_size[1]
-
-                    Slider:
-                        id: fps
-                        min: 0
-                        max: 30
-                        step: 1
-                        value: app.capture_fps
-                        on_value: app.capture_fps = self.value
-                    Label:
-                        id: fps_label
-                        size: self.texture_size
-                        size_hint_x: None
-                        text: '%s fps' % fps.value
-
-                BoxLayout:
-                    BoxLayout:
-                        orientation: 'vertical'
-                        size_hint_x: None
-                        width: '50sp'
+                        height: fps_label.texture_size[1]
 
                         Slider:
-                            id: image_size_slider
-                            orientation: 'vertical'
-                            min: 6
-                            max: 9
+                            id: fps
+                            min: 0
+                            max: 30
                             step: 1
-                            value: 8
-                            on_value:
-                                print self.value, 2 ** self.value
-                                app.image_size = int(2 ** self.value)
+                            value: app.capture_fps
+                            on_value: app.capture_fps = self.value
                         Label:
-                            size_hint_y: None
-                            height: 50
-                            text: '%s\n%s' % (image_size_slider.value, app.image_size)
-                    Image:
-                        on_parent: app.screen_texture = self
-                        allow_stretch: True
-                        source: 'tmp.png'
+                            id: fps_label
+                            size: self.texture_size
+                            size_hint_x: None
+                            text: '%s fps' % fps.value
 
-                        canvas.after:
-                            Color:
-                                rgba: 1, 1, 1, .5
+                    BoxLayout:
+                        BoxLayout:
+                            orientation: 'vertical'
+                            size_hint_x: None
+                            width: '50sp'
 
-                            Rectangle:
-                                pos:
-                                    self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size - 10,\
-                                    self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size - 10
-                                size: 30, 30
-                            Color:
-                                rgba: 0, 0, 0, .5
-                            Rectangle:
-                                pos:
-                                    self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size - 10,\
-                                    self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size
-                                size: 30, 10
+                            Slider:
+                                id: image_size_slider
+                                orientation: 'vertical'
+                                min: 6
+                                max: 9
+                                step: 1
+                                value: 8
+                                on_value:
+                                    print self.value, 2 ** self.value
+                                    app.image_size = int(2 ** self.value)
+                            Label:
+                                size_hint_y: None
+                                height: 50
+                                text: '%s\n%s' % (image_size_slider.value, app.image_size)
+                        Image:
+                            on_parent: app.screen_texture = self
+                            allow_stretch: True
+                            source: 'tmp.png'
 
-                            Rectangle:
-                                pos:
-                                    self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size,\
-                                    self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size - 10
-                                size: 10, 30
+                            canvas.after:
+                                Color:
+                                    rgba: 1, 1, 1, .5
+
+                                Rectangle:
+                                    pos:
+                                        self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size - 10,\
+                                        self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size - 10
+                                    size: 30, 30
+                                Color:
+                                    rgba: 0, 0, 0, .5
+                                Rectangle:
+                                    pos:
+                                        self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size - 10,\
+                                        self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size
+                                    size: 30, 10
+
+                                Rectangle:
+                                    pos:
+                                        self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size,\
+                                        self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size - 10
+                                    size: 10, 30
 
 
-    TabbedPanel:
-        size_hint_y: .4
-        do_default_tab: False
-        TabbedPanelItem:
-            text: 'mouse'
-            BoxLayout:
+        TabbedPanel:
+            size_hint_y: .4
+            do_default_tab: False
+            TabbedPanelItem:
+                text: 'mouse'
                 BoxLayout:
-                    size_hint_x: None
-                    width: slabel.width
-                    orientation: 'vertical'
-
-                    Label:
-                        id: slabel
-                        text: 'sensivity'
-                        width: self.texture_size[0]
-                    Slider:
-                        id: mslider
+                    BoxLayout:
+                        size_hint_x: None
+                        width: slabel.width
                         orientation: 'vertical'
-                        value: app.mouse_sensivity
-                        on_value: app.mouse_sensivity = self.value
-                        min: 0.1
-                        max: 10
+
+                        Label:
+                            id: slabel
+                            text: 'sensivity'
+                            width: self.texture_size[0]
+                        Slider:
+                            id: mslider
+                            orientation: 'vertical'
+                            value: app.mouse_sensivity
+                            on_value: app.mouse_sensivity = self.value
+                            min: 0.1
+                            max: 10
+                        Label:
+                            text:  str(round(mslider.value, 4))
+                            width: self.texture_size[0]
+
+                    MousePad:
+                        canvas:
+                            Color:
+                                rgba: .9, .9, .9, .9
+                            Rectangle:
+                                pos: self.pos
+                                size: self.size
+
+                    BoxLayout:
+                        size_hint_x: None
+                        width: dp(50)
+                        orientation: 'vertical'
+                        Button:
+                            text: 'double\nclick'
+                            on_press: app.mouse_click(n=2)
+                        Button:
+                            text: 'click'
+                            on_press: app.mouse_press()
+                            on_release: app.mouse_release()
+                        Button:
+                            text: 'right\nclick'
+                            on_press: app.mouse_press(b=2)
+                            on_release: app.mouse_release(b=2)
+
+            TabbedPanelItem:
+                text: 'keyboard'
+                BoxLayout:
+                    orientation: 'vertical'
+                    BoxLayout:
+                        size_hint_y: None
+                        height: dp(30)
+                        TextInput:
+                            multiline: False
+                            on_text_validate:
+                                app.send_keys(self.text)
+                                self.text = ''
+                    GridLayout:
+                        cols: 13
+                        on_parent: app.populate_keyboard(self)
+
+            TabbedPanelItem:
+                text: 'status'
+                ScrollView:
+                    BoxLayout:
+                        orientation: 'vertical'
+                        on_parent: app.status = self
+
+            TabbedPanelItem:
+                text: 'logs'
+                ScrollView:
                     Label:
-                        text:  str(round(mslider.value, 4))
-                        width: self.texture_size[0]
+                        size_hint_y: None
+                        text_size: self.width, None
+                        height: self.texture_size[1]
+                        text: app.log
 
-                MousePad:
-                    canvas:
-                        Color:
-                            rgba: .9, .9, .9, .9
-                        Rectangle:
-                            pos: self.pos
-                            size: self.size
-
-                BoxLayout:
-                    size_hint_x: None
-                    width: dp(50)
-                    orientation: 'vertical'
-                    Button:
-                        text: 'double\nclick'
-                        on_press: app.mouse_click(n=2)
-                    Button:
-                        text: 'click'
-                        on_press: app.mouse_press()
-                        on_release: app.mouse_release()
-                    Button:
-                        text: 'right\nclick'
-                        on_press: app.mouse_press(b=2)
-                        on_release: app.mouse_release(b=2)
-
-        TabbedPanelItem:
-            text: 'keyboard'
-            BoxLayout:
-                orientation: 'vertical'
-                BoxLayout:
-                    size_hint_y: None
-                    height: dp(30)
-                    TextInput:
-                        multiline: False
-                        on_text_validate:
-                            app.send_keys(self.text)
-                            self.text = ''
-                GridLayout:
-                    cols: 13
-                    on_parent: app.populate_keyboard(self)
-
-        TabbedPanelItem:
-            text: 'status'
-            ScrollView:
-                BoxLayout:
-                    orientation: 'vertical'
-                    on_parent: app.status = self
-
-        TabbedPanelItem:
-            text: 'logs'
-            ScrollView:
-                Label:
-                    size_hint_y: None
-                    text_size: self.width, None
-                    height: self.texture_size[1]
-                    text: app.log
-
-                    canvas:
-                        Color:
-                            rgba: .3, .3, .3, .5
-                        Rectangle:
-                            pos: 0, 0
-                            size: self.width, self.top
-
+                        canvas:
+                            Color:
+                                rgba: .3, .3, .3, .5
+                            Rectangle:
+                                pos: 0, 0
+                                size: self.width, self.top

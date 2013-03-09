@@ -1,13 +1,15 @@
 from twisted.internet import protocol, reactor, inotify
 from twisted.python import filepath
 from ConfigParser import ConfigParser
-from subprocess import Popen, PIPE
+#from subprocess import Popen, PIPE
 from uuid import uuid4
 from time import time
 from autopy import mouse, key, bitmap, screen
 
 from json import JSONDecoder
 from json import JSONEncoder
+
+from os import environ
 
 json_decode = JSONDecoder().raw_decode
 json_encode = JSONEncoder().encode
@@ -19,11 +21,44 @@ CONFIG = 'shellserver.cfg'
 CHUNKSIZE = 1 * 1024
 
 
+class ShellProcessProtocol(protocol.ProcessProtocol):
+    def __init__(self, command_shell, uid, name, send_logs=False):
+        self.uid = uid
+        self.command_shell = command_shell
+        self.name = name
+        self.send_logs = send_logs
+
+    def connectionMade(self):
+        self.start_time = time()
+        self.command_shell.send(name=self.name, process=self.uid,
+                                status='started')
+        self.transport.closeStdin()
+
+    def outReceived(self, data):
+        print "out:", data
+        if self.send_logs:
+            self.command_shell.send(
+                process=self.uid,
+                stdout=data.encode('base64'))
+
+    def errReceived(self, data):
+        print "err:", data
+        if self.send_logs:
+            self.command_shell.send(
+                process=self.uid,
+                stderr=data.encode('base64'))
+
+    def processExited(self, status):
+        self.command_shell.send(
+            process=self.uid,
+            status='ended')
+
+    def kill(self):
+        self.transport.signalProcess('KILL')
+
+
 class CommandShell(protocol.Protocol):
     def init(self):
-        self.running = []
-        reactor.callLater(1, self.clock_update_status)
-        self.status = {}
         self.running = {}
 
     def load_config(self, *args):
@@ -66,68 +101,28 @@ class CommandShell(protocol.Protocol):
     def execute(self, command, arguments):
         print "running %s" % command
         cmd = self.config.get(command, 'command').split(' ')
-
-        if (
-            'log' in self.config.items(command) and
-            self.config.get(command, 'log')
-        ):
-            process = Popen(cmd + arguments, stdout=PIPE, stderr=PIPE)
-        else:
-            process = Popen(cmd + arguments)
-
         uid = uuid4().hex
-        self.status[uid] = {'command': command, 'time': time()}
+
+        send_logs = (
+            'log' in self.config.items(command) and
+            self.config.get(command, 'log'))
+
+        process = ShellProcessProtocol(
+            uid=uid,
+            command_shell=self,
+            name=command,
+            send_logs=send_logs)
+
+        reactor.spawnProcess(process, cmd[0], cmd + arguments, env=environ)
+
         self.running[uid] = process
-
-    def clock_update_status(self):
-        self.update_status()
-        reactor.callLater(1, self.clock_update_status)
-
-    def update_status(self):
-        log = ''
-        to_remove = set()
-        for uid in self.status:
-            p = self.running[uid]
-            command = self.status[uid]['command']
-
-            if p.poll():
-                to_remove.add(uid)
-
-            if (
-                'log' in self.config.items(command) and
-                self.config.get(command, 'log')
-            ):
-                try:
-                    outs = p.communicate()
-                    log += outs[0].decode('utf-8')
-                    log += outs[1].decode('utf-8')
-                except ValueError, e:
-                    if 'closed file' in e:
-                        to_remove.add(uid)
-                    else:
-                        raise
-
-        for uid in to_remove:
-            self.running.remove(uid)
-            self.status.remove(uid)
-
-        return self.send(status=self.status, log=log)
 
     def kill_app(self, appid):
         if appid in self.running:
-            try:
-                self.running[appid].terminate()
-                self.running.pop(appid)
-                self.status.pop(appid)
-
-            except OSError, e:
-                if 'No such process' in e:
-                    self.status.pop(appid)
-                    self.running.pop(appid)
-                else:
-                    raise e
+            self.running[appid].kill()
 
     def dataReceived(self, data):
+        #print "datareceived", data
         while data:
             try:
                 decode, index = json_decode(data)
@@ -187,7 +182,6 @@ class CommandShell(protocol.Protocol):
                 pos = mouse.get_pos()
                 size = decode.get('size')
                 maxx, maxy = screen.get_size()
-                #print "capturing %s" % size
                 rect = ((
                     max(0, min((pos[0] - size[0] / 2), maxx - size[0])),
                     max(0, min((pos[1] - size[1] / 2), maxy - size[1]))
