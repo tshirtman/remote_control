@@ -13,6 +13,8 @@ from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
 from kivy.uix.dropdown import DropDown
+from kivy.uix.popup import Popup
+from kivy.uix.scrollview import ScrollView
 
 # installing twisted reactor the kivy way before importing anything from
 # twisted
@@ -87,7 +89,7 @@ class RemoteCommand(App):
     dropdown = ObjectProperty(None)
     mods = DictProperty({})
     mouse_pos = ListProperty([0, 0])
-    protocol = ObjectProperty(None)
+    protocol = ObjectProperty(None, allownone=True)
     interface = ObjectProperty(None)
     processes = DictProperty({})
 
@@ -164,22 +166,22 @@ class RemoteCommand(App):
                                   size_hint_y='None',
                                   height='30dp')
 
-                    kill = Button(text='close')
                     out = Button(text='output log')
                     err = Button(text='error log')
+                    kill = Button(text='close')
 
                     kill.bind(on_release=lambda *args:
                               self.send(command='kill', uid=process))
                     out.bind(on_release=lambda *args:
                              self.display_out(process))
                     err.bind(on_release=lambda *args:
-                             self.display_err(process))
+                             self.display_out(process, 'err'))
 
                     box = BoxLayout(size_hint_y=None, height=sp(20))
                     box.add_widget(label)
-                    box.add_widget(kill)
                     box.add_widget(out)
                     box.add_widget(err)
+                    box.add_widget(kill)
 
                     self.processes[process] = {
                         'label': label,
@@ -257,7 +259,6 @@ class RemoteCommand(App):
     def got_protocol(self, p):
         self.log += "got protocol\n"
         self.protocol = p
-        self.send(command='list')
 
     #def on_protocol(self, *args):
         #if not self.protocol:

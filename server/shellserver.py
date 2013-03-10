@@ -80,6 +80,7 @@ class CommandShell(protocol.Protocol):
         #print "adding watcher"
         notifier.watch(filepath.FilePath(CONFIG), callbacks=[self.load_config])
         print "config watcher started"
+        reactor.callLater(.5, self.send, commands=self.commands)
 
     def send(self, *args, **kwargs):
         self.transport.write(json_encode(kwargs))
@@ -137,11 +138,7 @@ class CommandShell(protocol.Protocol):
                 return
 
             command = decode.get('command')
-
-            if command == 'list':
-                self.send(commands=self.commands)
-
-            elif command == 'mouse':
+            if command == 'mouse':
                 pos = mouse.get_pos()
                 action = decode.get('action')
 
