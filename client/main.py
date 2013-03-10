@@ -158,21 +158,47 @@ class RemoteCommand(App):
             if 'process' in datadict:
                 process = datadict['process']
                 status = datadict['status']
+
                 if status == 'started':
-                    button = Button(text=datadict['name'],
-                                    size_hint_y='None',
-                                    height='30dp')
+                    label = Label(text=datadict['name'],
+                                  size_hint_y='None',
+                                  height='30dp')
+
+                    kill = Button(text='close')
+                    out = Button(text='output log')
+                    err = Button(text='error log')
+
+                    kill.bind(on_release=lambda *args:
+                              self.send(command='kill', uid=process))
+                    out.bind(on_release=lambda *args:
+                             self.display_out(process))
+                    err.bind(on_release=lambda *args:
+                             self.display_err(process))
+
+                    box = BoxLayout(size_hint_y=None, height=sp(20))
+                    box.add_widget(label)
+                    box.add_widget(kill)
+                    box.add_widget(out)
+                    box.add_widget(err)
 
                     self.processes[process] = {
-                        'button': button,
+                        'label': label,
+                        'box': box,
+                        'kill': kill,
                         'out': '', 'err': ''}
 
-                    button.bind(on_press=partial(self.process_menu, process))
-                    self.status.add_widget(button)
+                    self.status.add_widget(box)
 
                 elif status == 'ended':
-                    button = self.processes[process]['button']
-                    button.text += ' - DONE'
+                    box = self.processes[process]['box']
+                    label = self.processes[process]['label']
+                    label.text += ' - DONE'
+                    kill = self.processes[process]['kill']
+                    box.remove_widget(kill)
+                    close = Button(text='close')
+                    close.bind(on_release=lambda *args:
+                               app.status.remove_widget(box))
+                    box.add_widget(close)
 
                 elif 'out' in datadict:
                     self.processes[process]['out'] += datadict['out']

@@ -54,7 +54,7 @@ class ShellProcessProtocol(protocol.ProcessProtocol):
             status='ended')
 
     def kill(self):
-        self.transport.signalProcess('KILL')
+        self.transport.signalProcess('TERM')
 
 
 class CommandShell(protocol.Protocol):
@@ -171,12 +171,8 @@ class CommandShell(protocol.Protocol):
             elif command == 'release_key':
                 key.toggle(getattr(key, 'K_' + decode['key'].upper()), False)
 
-            elif command == 'status':
-                    self.update_status()
-
             elif command == 'kill':
                 self.kill_app(decode['uid'])
-                self.update_status()
 
             elif command == 'capture':
                 pos = mouse.get_pos()
