@@ -22,7 +22,7 @@ CHUNKSIZE = 1 * 1024
 
 
 class ShellProcessProtocol(protocol.ProcessProtocol):
-    def __init__(self, command_shell, uid, name, send_logs=False):
+    def __init__(self, command_shell, uid, name, send_logs):
         self.uid = uid
         self.command_shell = command_shell
         self.name = name
@@ -48,10 +48,13 @@ class ShellProcessProtocol(protocol.ProcessProtocol):
                 process=self.uid,
                 stderr=data.encode('base64'))
 
-    def processExited(self, status):
+    def processEnded(self, status):
         self.command_shell.send(
             process=self.uid,
-            status='ended')
+            status='ended',
+            autoclose=(
+                self.command_shell.config.has_option(self.name, 'autoclose') and
+                self.command_shell.config.get(self.name, 'autoclose')))
 
     def kill(self):
         self.transport.signalProcess('TERM')
@@ -105,7 +108,7 @@ class CommandShell(protocol.Protocol):
         uid = uuid4().hex
 
         send_logs = (
-            'log' in self.config.items(command) and
+            self.config.has_option(command, 'log') and
             self.config.get(command, 'log'))
 
         process = ShellProcessProtocol(

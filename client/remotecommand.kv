@@ -26,6 +26,7 @@ FloatLayout:
                 on_press: app.connect(address.text, port.text)
 
         TabbedPanel:
+            id: interface
             on_parent: app.interface = self
             do_default_tab: False
             TabbedPanelItem:
@@ -200,3 +201,14 @@ FloatLayout:
                             Rectangle:
                                 pos: 0, 0
                                 size: self.width, self.top
+    Curtain:
+        canvas.before:
+            Color:
+                rgba: 0, 0, 0, .9
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        top: interface.top
+        text: 'Connect to a server'
+        on_parent: app.curtain = self

@@ -6,6 +6,7 @@ from kivy.support import install_twisted_reactor
 
 from kivy.metrics import sp
 from kivy.clock import Clock
+from kivy.animation import Animation
 
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -37,6 +38,14 @@ json_encode = JSONEncoder().encode
 __version__ = '0.01'
 
 CONFIG = 'remote_command.cfg'
+
+
+class Curtain(Label):
+    def on_touch_down(self, touch):
+        return (
+            self.collide_point(*touch.pos) or
+            super(Curtain, self).on_touch_down(touch)
+        )
 
 
 class CommandClient(Protocol):
@@ -92,6 +101,7 @@ class RemoteCommand(App):
     protocol = ObjectProperty(None, allownone=True)
     interface = ObjectProperty(None)
     processes = DictProperty({})
+    curtain = ObjectProperty(None)
 
     def connect(self, ip, port):
         if self.dropdown:
@@ -159,7 +169,7 @@ class RemoteCommand(App):
 
             if 'process' in datadict:
                 process = datadict['process']
-                status = datadict['status']
+                status = datadict.get('status', None)
 
                 if status == 'started':
                     label = Label(text=datadict['name'],
@@ -193,20 +203,23 @@ class RemoteCommand(App):
 
                 elif status == 'ended':
                     box = self.processes[process]['box']
-                    label = self.processes[process]['label']
-                    label.text += ' - DONE'
-                    kill = self.processes[process]['kill']
-                    box.remove_widget(kill)
-                    close = Button(text='close')
-                    close.bind(on_release=lambda *args:
-                               app.status.remove_widget(box))
-                    box.add_widget(close)
+                    if datadict['autoclose']:
+                        app.status.remove_widget(box)
+                    else:
+                        label = self.processes[process]['label']
+                        label.text += ' - DONE'
+                        kill = self.processes[process]['kill']
+                        box.remove_widget(kill)
+                        close = Button(text='close')
+                        close.bind(on_release=lambda *args:
+                                   app.status.remove_widget(box))
+                        box.add_widget(close)
 
-                elif 'out' in datadict:
-                    self.processes[process]['out'] += datadict['out']
+                elif 'stdout' in datadict:
+                    self.processes[process]['out'] += datadict['stdout'].decode('base64')
 
-                elif 'err' in datadict:
-                    self.processes[process]['err'] += datadict['err']
+                elif 'stderr' in datadict:
+                    self.processes[process]['err'] += datadict['stderr'].decode('base64')
 
             if 'mouse_pos' in datadict:
                 self.mouse_pos = datadict['mouse_pos']
@@ -256,18 +269,30 @@ class RemoteCommand(App):
     def process_menu(self, process, *args):
         pass
 
+    def display_out(self, uid, out='out'):
+        process = self.processes[uid]
+        p = Popup(size_hint=(.95, .95),
+                  title='std%s %s' % (out, process['label'].text))
+        sc = ScrollView()
+        content = Label(text=process[out], size_hint=(None, None))
+        sc.bind(width=content.setter('width'))
+        content.bind(width=lambda c, w:
+                     content.setter('text_size')(c, (w, None)))
+        content.bind(texture_size=content.setter('size'))
+        sc.add_widget(content)
+        p.add_widget(sc)
+        p.open()
+
     def got_protocol(self, p):
         self.log += "got protocol\n"
         self.protocol = p
 
-    #def on_protocol(self, *args):
-        #if not self.protocol:
-            #self.popup = Popup()
-            #self.interface.add_widget(self.popup)
-
-        #elif self.popup:
-            #self.interface.remove_widget(self.popup)
-            #self.popup = None
+    def on_protocol(self, *args):
+        if not self.protocol:
+            Animation(top=self.interface.top, d=.5, t='in_quad').start(
+                self.curtain)
+        else:
+            Animation(top=0, d=.5, t='out_quad').start(self.curtain)
 
     def on_capture_fps(self, *args):
         Clock.unschedule(self.update_screen)
