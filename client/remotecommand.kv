@@ -84,35 +84,58 @@ FloatLayout:
                             Label:
                                 size_hint_y: None
                                 height: 50
-                                text: '%s\n%s' % (image_size_slider.value, app.image_size)
-                        Image:
-                            on_parent: app.screen_texture = self
-                            allow_stretch: True
-                            source: 'tmp.png'
+                                text:
+                                    '%s\n%s' % (
+                                    image_size_slider.value,
+                                    app.image_size)
 
-                            canvas.after:
-                                Color:
-                                    rgba: 1, 1, 1, .5
+                        MousePad:
+                            Image:
+                                pos_hint: {'x': 0, 'y': 0}
+                                on_parent: app.screen_texture = self
+                                allow_stretch: True
+                                source: 'tmp.png'
 
-                                Rectangle:
-                                    pos:
-                                        self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size - 10,\
-                                        self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size - 10
-                                    size: 30, 30
-                                Color:
-                                    rgba: 0, 0, 0, .5
-                                Rectangle:
-                                    pos:
-                                        self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size - 10,\
-                                        self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size
-                                    size: 30, 10
+                                canvas.after:
+                                    Color:
+                                        rgba: 1, 1, 1, .5
 
-                                Rectangle:
-                                    pos:
-                                        self.center_x - min(self.size) / 2 + app.mouse_pos[0] * min(self.size) * 1.0 / app.image_size,\
-                                        self.center_y + min(self.size) / 2 - app.mouse_pos[1] * min(self.size) * 1.0 / app.image_size - 10
-                                    size: 10, 30
+                                    Rectangle:
+                                        pos:
+                                            (
+                                            self.center_x - min(self.size) / 2 +
+                                            app.mouse_pos[0] * min(self.size) * 1.0 /
+                                            app.image_size - 10,
+                                            self.center_y + min(self.size) / 2 -
+                                            app.mouse_pos[1] * min(self.size) * 1.0 /
+                                            app.image_size - 10
+                                            )
+                                        size: 30, 30
+                                    Color:
+                                        rgba: 0, 0, 0, .5
+                                    Rectangle:
+                                        pos:
+                                            (
+                                            self.center_x - min(self.size) / 2 +
+                                            app.mouse_pos[0] * min(self.size) * 1.0 /
+                                            app.image_size - 10,\
+                                            self.center_y + min(self.size) / 2 -
+                                            app.mouse_pos[1] * min(self.size) * 1.0 /
+                                            app.image_size
+                                            )
+                                        size: 30, 10
 
+                                    Rectangle:
+                                        pos:
+                                            (
+                                            self.center_x - min(self.size) / 2 +
+                                            app.mouse_pos[0] * min(self.size) * 1.0 /
+                                            app.image_size,\
+                                            self.center_y + min(self.size) / 2 -
+                                            app.mouse_pos[1] * min(self.size) * 1.0 /
+                                            app.image_size - 10
+                                            )
+                                        size: 10, 30
 
         TabbedPanel:
             size_hint_y: .4
@@ -202,6 +225,7 @@ FloatLayout:
                             Rectangle:
                                 pos: 0, 0
                                 size: self.width, self.top
+
     Curtain:
         canvas.before:
             Color:
@@ -210,6 +234,6 @@ FloatLayout:
                 pos: self.pos
                 size: self.size
 
-        top: interface.top
+        top: interface.top if not app.protocol else 0
         text: 'Connect to a server'
         on_parent: app.curtain = self

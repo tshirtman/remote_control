@@ -1,7 +1,6 @@
 from twisted.internet import protocol, reactor, inotify
 from twisted.python import filepath
 from ConfigParser import ConfigParser
-#from subprocess import Popen, PIPE
 from uuid import uuid4
 from time import time
 from autopy import mouse, key, bitmap, screen
@@ -53,8 +52,8 @@ class ShellProcessProtocol(protocol.ProcessProtocol):
             process=self.uid,
             status='ended',
             autoclose=(
-                self.command_shell.config.has_option(self.name, 'autoclose') and
-                self.command_shell.config.get(self.name, 'autoclose')))
+                self.command_shell.config.has_option(self.name, 'autoclose')
+                and self.command_shell.config.get(self.name, 'autoclose')))
 
     def kill(self):
         self.transport.signalProcess('TERM')

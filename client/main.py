@@ -1,4 +1,5 @@
 # encoding: utf-8
+
 from kivy.app import App
 from kivy.properties import ListProperty, ObjectProperty, StringProperty,\
     NumericProperty, DictProperty
@@ -7,8 +8,10 @@ from kivy.support import install_twisted_reactor
 from kivy.metrics import sp
 from kivy.clock import Clock
 from kivy.animation import Animation
+from kivy.core.window import Window
 
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
@@ -61,7 +64,7 @@ class CommandClientFactory(Factory):
         return CommandClient()
 
 
-class MousePad(Widget):
+class MousePad(FloatLayout):
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
             touch.grab(self)
@@ -104,6 +107,8 @@ class RemoteCommand(App):
     curtain = ObjectProperty(None)
 
     def connect(self, ip, port):
+        Window.release_keyboard()
+
         if self.dropdown:
             self.dropdown.dismiss()
 
@@ -216,10 +221,12 @@ class RemoteCommand(App):
                         box.add_widget(close)
 
                 elif 'stdout' in datadict:
-                    self.processes[process]['out'] += datadict['stdout'].decode('base64')
+                    self.processes[process]['out'] += datadict['stdout'].\
+                        decode('base64')
 
                 elif 'stderr' in datadict:
-                    self.processes[process]['err'] += datadict['stderr'].decode('base64')
+                    self.processes[process]['err'] += datadict['stderr'].\
+                        decode('base64')
 
             if 'mouse_pos' in datadict:
                 self.mouse_pos = datadict['mouse_pos']
@@ -336,11 +343,11 @@ class RemoteCommand(App):
         self.send(command='mouse', action='click', b=b, n=n)
 
     def mouse_press(self, b=1):
-        self.log += 'mouse pressed\n'
+        #self.log += 'mouse pressed\n'
         self.send(command='mouse', action='press', b=b)
 
     def mouse_release(self, b=1):
-        self.log += 'mouse released\n'
+        #self.log += 'mouse released\n'
         self.send(command='mouse', action='release', b=b)
 
     def send_keys(self, string):
