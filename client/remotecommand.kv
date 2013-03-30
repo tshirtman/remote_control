@@ -6,11 +6,12 @@ FloatLayout:
             height: '35sp'
 
             TextInput:
-                mutiline: False
+                multiline: False
                 id: address
                 on_text_validate:
                     self.focus = False
                     port.focus = True
+
                 on_touch_up: app.propose_addresses(self)
                 on_text: app.propose_addresses(self)
 
